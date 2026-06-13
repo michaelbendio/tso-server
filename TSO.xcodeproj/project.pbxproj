@@ -88,6 +88,7 @@
 				AA0000010000000000000050 /* Sources */,
 				AA0000010000000000000020 /* Frameworks */,
 				AA0000010000000000000060 /* Resources */,
+				AA0000010000000000000061 /* Embed Current HTML */,
 			);
 			buildRules = (
 			);
@@ -145,6 +146,28 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		AA0000010000000000000061 /* Embed Current HTML */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Embed Current HTML";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -eu\nsrc_www=\"${SRCROOT}/TSO/www\"\nwww_dir=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/www\"\nrm -rf \"$www_dir\"\nmkdir -p \"$www_dir\"\nfind \"$src_www\" -mindepth 1 -maxdepth 1 ! -name .DS_Store -exec cp -RL {} \"$www_dir/\" \\;\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		AA0000010000000000000050 /* Sources */ = {
