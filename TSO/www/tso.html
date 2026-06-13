@@ -131,6 +131,37 @@ textarea.services-editor { min-height:320px; resize:vertical; }
 .verified-edit.active { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .resource-browse-wrap { width:min(860px,100%); }
 .resource-listbox { width:100%; box-sizing:border-box; }
+.resource-button-listbox {
+  width:100%;
+  height:25em;
+  box-sizing:border-box;
+  margin-top:8px;
+  overflow:auto;
+  border:1px solid #999;
+  background:#fff;
+}
+.resource-listbox-option {
+  display:block;
+  width:100%;
+  box-sizing:border-box;
+  border:0;
+  border-radius:0;
+  margin:0;
+  padding:1px 4px;
+  background:#fff;
+  color:#000;
+  font:inherit;
+  line-height:1.25;
+  text-align:left;
+}
+.resource-listbox-option:hover,
+.resource-listbox-option[aria-selected="true"] {
+  background:#d0d0d0;
+}
+.resource-listbox-option:focus {
+  outline:2px solid #003366;
+  outline-offset:-2px;
+}
 .resource-browse-actions { margin-top:8px; display:flex; gap:8px; align-items:center; width:100%; }
 .resource-browse-actions .spacer { flex:1; }
 .admin-panel-title { margin:0 0 4px; }
@@ -3260,7 +3291,7 @@ function renderServicesHTML(text){
 const seed = JSON.parse(document.getElementById("seed-data").textContent);
 // Main persisted app data snapshot (categories/resources + metadata).
 let data = JSON.parse(localStorage.getItem("tsoData") || "null");
-const APP_VERSION = "1.5.0";
+const APP_VERSION = "1.5.1";
 const DEBUG = new URLSearchParams(location.search).has("debug");
 const UPDATE_SEEN_STORAGE_KEY = "tsoRecentUpdatesSeen";
 const CATEGORY_REMINDER_TEXT = "If you notice resources that need to be added or updated, please send a message to Elder and Sister Gasser. Report bugs to Elder Bendio (michaelbendio@gmail.com).";
@@ -3737,10 +3768,13 @@ function runSelfTests(){
         renderAdmin();
         const sel = document.getElementById("catSelect");
         if(!sel) throw new Error("category selector was not rendered");
-        if(sel.size !== 25) throw new Error("category selector should render as a visible listbox");
-        if(!sel.classList.contains("resource-listbox")) throw new Error("category selector should use listbox styling");
-        if(sel.options.length !== 2) throw new Error("category selector options were not populated");
-        if(sel.options[0].textContent !== "Housing") throw new Error("category selector should respect display order");
+        if(sel.tagName.toLowerCase() === "select") throw new Error("category selector should not use native select");
+        if(sel.getAttribute("role") !== "listbox") throw new Error("category selector should expose listbox role");
+        if(!sel.classList.contains("resource-button-listbox")) throw new Error("category selector should use custom listbox styling");
+        const options = Array.from(sel.querySelectorAll(".resource-listbox-option"));
+        if(options.length !== 2) throw new Error("category selector options were not populated");
+        if(options[0].textContent !== "Housing") throw new Error("category selector should respect display order");
+        if(selectedCategoryIndex !== "1") throw new Error("category selector should default to the first visible category");
         const resourceList = document.getElementById("adminCategoryResourceList");
         const editor = document.getElementById("catEditor");
         if(!resourceList || !editor || resourceList.parentElement !== editor){
@@ -3749,10 +3783,59 @@ function runSelfTests(){
         if(!/Shelter Resource/.test(resourceList.textContent || "")){
           throw new Error("category resource list did not render the selected category resources");
         }
+        sel.dispatchEvent(new KeyboardEvent("keydown", { key:"ArrowDown", bubbles:true }));
+        if(selectedCategoryIndex !== "0") throw new Error("category selector keyboard navigation did not update selection");
       }finally{
         data = previousData;
         adminTab = previousAdminTab;
         selectedCategoryIndex = previousSelectedCategoryIndex;
+        editing = previousEditing;
+        editorSnapshot = previousEditorSnapshot;
+      }
+    }
+  });
+
+  tests.push({
+    name: "ADMIN RESOURCE BUTTON LISTBOX RENDERING",
+    fn: () => {
+      const previousData = data;
+      const previousAdminTab = adminTab;
+      const previousSelectedResourceId = selectedResourceId;
+      const previousAdminResourceEditMode = adminResourceEditMode;
+      const previousAdminShowVerifiedDates = adminShowVerifiedDates;
+      const previousEditing = editing;
+      const previousEditorSnapshot = editorSnapshot;
+      try{
+        data = {
+          categories:[],
+          resources:[
+            { id:"zeta", name:"Zeta Resource", categories:[], tags:[], pdfs:[], servicesText:"" },
+            { id:"alpha", name:"Alpha Resource", categories:[], tags:[], pdfs:[], servicesText:"" }
+          ],
+          changes:[]
+        };
+        adminTab = "resources";
+        selectedResourceId = "";
+        adminResourceEditMode = false;
+        adminShowVerifiedDates = false;
+        renderAdmin();
+        const list = document.getElementById("resSelect");
+        if(!list) throw new Error("resource browse list was not rendered");
+        if(list.tagName.toLowerCase() === "select") throw new Error("resource browse list should not use native select");
+        if(list.getAttribute("role") !== "listbox") throw new Error("resource browse list should expose listbox role");
+        if(!list.classList.contains("resource-button-listbox")) throw new Error("resource browse list should use custom listbox styling");
+        const options = Array.from(list.querySelectorAll(".resource-listbox-option"));
+        if(options.length !== 2) throw new Error("resource browse options were not populated");
+        if(options[0].textContent !== "Alpha Resource") throw new Error("resource browse list should respect display order");
+        if(selectedResourceId !== "alpha") throw new Error("resource browse selection should default to the first visible resource");
+        list.dispatchEvent(new KeyboardEvent("keydown", { key:"ArrowDown", bubbles:true }));
+        if(selectedResourceId !== "zeta") throw new Error("resource browse keyboard navigation did not update selection");
+      }finally{
+        data = previousData;
+        adminTab = previousAdminTab;
+        selectedResourceId = previousSelectedResourceId;
+        adminResourceEditMode = previousAdminResourceEditMode;
+        adminShowVerifiedDates = previousAdminShowVerifiedDates;
         editing = previousEditing;
         editorSnapshot = previousEditorSnapshot;
       }
@@ -6912,7 +6995,7 @@ function renderAdminCategories(container){
           <button class="button danger" onclick="deleteCategory()">Delete</button>
           <button class="button" onclick="openCategoryOrderEditor()">Edit display order...</button>
         </div>
-        <select id="catSelect" class="resource-listbox" size="25"></select>
+        <div id="catSelect" class="resource-button-listbox" role="listbox" tabindex="0" aria-label="Categories"></div>
         <div id="categoryOrderOverlay" style="${adminCategoryOrderEditorOpen ? "position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:40; display:flex; align-items:center; justify-content:center;" : "display:none;"}">
           <div id="categoryOrderPanel" style="background:#fff; border-radius:8px; border:1px solid #ccc; width:min(640px,90vw); max-height:80vh; overflow:auto; padding:12px;">
             <h4 style="margin:0 0 10px 0;">Edit display order</h4>
@@ -6934,27 +7017,24 @@ function renderAdminCategories(container){
   const pairs = data.categories.map((c,i)=>({c,i}));
   pairs.sort((a,b)=>(a.c.displayOrder ?? 999)-(b.c.displayOrder ?? 999));
 
-  pairs.forEach(({c,i})=>{
-    const opt = document.createElement("option");
-    opt.value = String(i);
-    opt.textContent = c.label;
-    sel.appendChild(opt);
-  });
+  populateCategoryBrowseOptions(sel, pairs);
 
-  sel.onchange = () => {
+  sel.addEventListener("click", event => {
+    const btn = event.target.closest(".resource-listbox-option");
+    if(!btn || !sel.contains(btn)) return;
     if(!commitPendingEditsIfChanged()) return;
-    selectedCategoryIndex = sel.value;
-    editCategory(parseInt(sel.value,10));
-  };
-  sel.ondblclick = () => {
+    setCategoryBrowseSelection(sel, btn.dataset.categoryIndex || "");
+    editCategory(parseInt(selectedCategoryIndex,10));
+  });
+  sel.addEventListener("dblclick", event => {
+    if(!event.target.closest(".resource-listbox-option")) return;
     const labelInput = document.getElementById("cat_label");
     if(labelInput){
       labelInput.focus();
       labelInput.select();
     }
-  };
+  });
   sel.onkeydown = (e) => {
-    if(document.activeElement !== sel) return;
     if(e.key === "Enter"){
       e.preventDefault();
       const labelInput = document.getElementById("cat_label");
@@ -6967,16 +7047,22 @@ function renderAdminCategories(container){
     if(e.key === "Delete"){
       e.preventDefault();
       deleteCategory();
+      return;
+    }
+    if(["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)){
+      e.preventDefault();
+      if(!commitPendingEditsIfChanged()) return;
+      moveCategoryBrowseSelection(sel, e.key);
+      editCategory(parseInt(selectedCategoryIndex,10));
     }
   };
 
-  if(sel.options.length && Array.from(sel.options).some(opt => opt.value === selectedCategoryIndex)){
-    sel.value = selectedCategoryIndex;
-    editCategory(parseInt(sel.value,10));
-  }else if(sel.options.length){
-    sel.value = sel.options[0].value;
-    selectedCategoryIndex = sel.value;
-    editCategory(parseInt(sel.value,10));
+  if(pairs.length && pairs.some(({i}) => String(i) === selectedCategoryIndex)){
+    setCategoryBrowseSelection(sel, selectedCategoryIndex);
+    editCategory(parseInt(selectedCategoryIndex,10));
+  }else if(pairs.length){
+    setCategoryBrowseSelection(sel, String(pairs[0].i));
+    editCategory(parseInt(selectedCategoryIndex,10));
   }else{
     editing = null;
     editorSnapshot = "";
@@ -7040,6 +7126,51 @@ function renderAdminCategories(container){
       });
     }
   }
+}
+
+function populateCategoryBrowseOptions(sel, pairs){
+  if(!sel) return;
+  sel.innerHTML = "";
+  pairs.forEach(({c,i}) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "resource-listbox-option";
+    btn.setAttribute("role", "option");
+    btn.setAttribute("aria-selected", "false");
+    btn.tabIndex = -1;
+    btn.dataset.categoryIndex = String(i);
+    btn.textContent = c.label || "";
+    sel.appendChild(btn);
+  });
+}
+
+function setCategoryBrowseSelection(sel, categoryIndex){
+  const idx = String(categoryIndex || "");
+  selectedCategoryIndex = idx;
+  if(!sel) return;
+  sel.dataset.selectedCategoryIndex = idx;
+  Array.from(sel.querySelectorAll(".resource-listbox-option")).forEach((btn, index) => {
+    const selected = btn.dataset.categoryIndex === idx;
+    btn.setAttribute("aria-selected", selected ? "true" : "false");
+    if(!btn.id) btn.id = `catOption_${index}`;
+    if(selected){
+      sel.setAttribute("aria-activedescendant", btn.id);
+      btn.scrollIntoView({ block:"nearest" });
+    }
+  });
+}
+
+function moveCategoryBrowseSelection(sel, key){
+  if(!sel) return;
+  const options = Array.from(sel.querySelectorAll(".resource-listbox-option"));
+  if(!options.length) return;
+  const current = options.findIndex(btn => btn.dataset.categoryIndex === selectedCategoryIndex);
+  let next = current === -1 ? 0 : current;
+  if(key === "ArrowDown") next = Math.min(next + 1, options.length - 1);
+  if(key === "ArrowUp") next = Math.max(next - 1, 0);
+  if(key === "Home") next = 0;
+  if(key === "End") next = options.length - 1;
+  setCategoryBrowseSelection(sel, options[next].dataset.categoryIndex || "");
 }
 
 function newCategory(){
@@ -7165,9 +7296,10 @@ function completeCategoryDelete(categoryId, updateDescription){
 
 function deleteCategory(){
   const sel = document.getElementById("catSelect");
-  if(!sel || !sel.value) return;
+  const selectedIndex = selectedCategoryIndex || (sel && sel.dataset.selectedCategoryIndex) || "";
+  if(!sel || !selectedIndex) return;
 
-  const idx = parseInt(sel.value,10);
+  const idx = parseInt(selectedIndex,10);
   const cat = data.categories[idx];
   if(!cat) return;
   if((!editing || editing.kind !== "category" || editing.idx !== idx) && !commitPendingEditsIfChanged()) return;
@@ -7263,7 +7395,7 @@ function renderAdminResources(container){
               <span class="spacer"></span>
               <button class="button primary" onclick="openResourceEditor()">Edit</button>
             </div>
-        <select id="resSelect" class="resource-listbox" size="25" style="margin-top:8px;"></select>
+        <div id="resSelect" class="resource-button-listbox" role="listbox" tabindex="0" aria-label="Resources"></div>
           </div>
         </div>
       </div>
@@ -7275,19 +7407,17 @@ function renderAdminResources(container){
       sortToggle.checked = adminShowVerifiedDates;
       sortToggle.onchange = () => {
         adminShowVerifiedDates = !!sortToggle.checked;
-        populateResourceSelectOptions(sel, selectedResourceId);
+        populateResourceBrowseOptions(sel, selectedResourceId);
       };
     }
 
-    populateResourceSelectOptions(sel, selectedResourceId);
-    sel.onchange = () => { selectedResourceId = sel.value || ""; };
-    sel.addEventListener("click", event => handleAdminResourceReferenceClick(event, sel));
-    sel.ondblclick = () => {
-      if(document.activeElement !== sel) return;
+    populateResourceBrowseOptions(sel, selectedResourceId);
+    sel.addEventListener("click", event => handleAdminResourceBrowseClick(event, sel));
+    sel.addEventListener("dblclick", event => {
+      if(!event.target.closest(".resource-listbox-option")) return;
       openResourceEditor();
-    };
+    });
     sel.onkeydown = (e) => {
-      if(document.activeElement !== sel) return;
       if(e.key === "Enter"){
         e.preventDefault();
         openResourceEditor();
@@ -7296,6 +7426,11 @@ function renderAdminResources(container){
       if(e.key === "Delete"){
         e.preventDefault();
         deleteResource();
+        return;
+      }
+      if(["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)){
+        e.preventDefault();
+        moveResourceBrowseSelection(sel, e.key);
       }
     };
 
@@ -7329,33 +7464,72 @@ function renderAdminResources(container){
   editResource(idx);
 }
 
-function populateResourceSelectOptions(sel, preferredResourceId){
+function populateResourceBrowseOptions(sel, preferredResourceId){
   if(!sel) return;
-  const prev = preferredResourceId || selectedResourceId || sel.value || "";
+  const prev = preferredResourceId || selectedResourceId || sel.dataset.selectedResourceId || "";
   sel.innerHTML = "";
 
-  getAdminResourceBrowseList().forEach((r) => {
-      const opt = document.createElement("option");
-      opt.value = String(r.id || "");
-      const verifiedLabel = isValidMMYY(r.verifiedOn)
-        ? `${r.name || ""} \u2014 ${formatVerifiedOnForDisplay(r.verifiedOn)}`
-        : (r.name || "");
-      opt.textContent = adminShowVerifiedDates ? verifiedLabel : (r.name || "");
-      sel.appendChild(opt);
-    });
+  const resources = getAdminResourceBrowseList();
+  resources.forEach((r) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "resource-listbox-option";
+    btn.setAttribute("role", "option");
+    btn.setAttribute("aria-selected", "false");
+    btn.tabIndex = -1;
+    btn.dataset.resourceId = String(r.id || "");
+    const verifiedLabel = isValidMMYY(r.verifiedOn)
+      ? `${r.name || ""} \u2014 ${formatVerifiedOnForDisplay(r.verifiedOn)}`
+      : (r.name || "");
+    btn.textContent = adminShowVerifiedDates ? verifiedLabel : (r.name || "");
+    sel.appendChild(btn);
+  });
 
-  if(prev && Array.from(sel.options).some(opt => opt.value === prev)){
-    sel.value = prev;
-    selectedResourceId = prev;
-    return;
-  }
-
-  if(sel.options.length){
-    sel.value = sel.options[0].value;
-    selectedResourceId = sel.value;
+  if(prev && resources.some(resource => String(resource.id || "") === prev)){
+    setResourceBrowseSelection(sel, prev);
+  }else if(resources.length){
+    setResourceBrowseSelection(sel, String(resources[0].id || ""));
   }else{
+    sel.dataset.selectedResourceId = "";
+    sel.removeAttribute("aria-activedescendant");
     selectedResourceId = "";
   }
+}
+
+function setResourceBrowseSelection(sel, resourceId){
+  const id = String(resourceId || "");
+  selectedResourceId = id;
+  if(!sel) return;
+  sel.dataset.selectedResourceId = id;
+  Array.from(sel.querySelectorAll(".resource-listbox-option")).forEach((btn, index) => {
+    const selected = btn.dataset.resourceId === id;
+    btn.setAttribute("aria-selected", selected ? "true" : "false");
+    if(!btn.id) btn.id = `resOption_${index}`;
+    if(selected){
+      sel.setAttribute("aria-activedescendant", btn.id);
+      btn.scrollIntoView({ block:"nearest" });
+    }
+  });
+}
+
+function handleAdminResourceBrowseClick(event, sel){
+  const btn = event.target.closest(".resource-listbox-option");
+  if(!btn || !sel || !sel.contains(btn)) return;
+  setResourceBrowseSelection(sel, btn.dataset.resourceId || "");
+  handleAdminResourceReferenceClick(event, { value:selectedResourceId });
+}
+
+function moveResourceBrowseSelection(sel, key){
+  if(!sel) return;
+  const options = Array.from(sel.querySelectorAll(".resource-listbox-option"));
+  if(!options.length) return;
+  const current = options.findIndex(btn => btn.dataset.resourceId === selectedResourceId);
+  let next = current === -1 ? 0 : current;
+  if(key === "ArrowDown") next = Math.min(next + 1, options.length - 1);
+  if(key === "ArrowUp") next = Math.max(next - 1, 0);
+  if(key === "Home") next = 0;
+  if(key === "End") next = options.length - 1;
+  setResourceBrowseSelection(sel, options[next].dataset.resourceId || "");
 }
 
 function newResource(){
