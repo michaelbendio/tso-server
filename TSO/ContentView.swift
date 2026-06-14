@@ -78,7 +78,7 @@ private struct HTMLFilePickerView: View {
                     ContentUnavailableView(
                         "No HTML Files",
                         systemImage: "doc.text.magnifyingglass",
-                        description: Text("Add .html files to the bundled www folder.")
+                        description: Text("Add .html files to the TSO folder or bundled www folder.")
                     )
                 } else {
                     List(fileNames, id: \.self) { fileName in

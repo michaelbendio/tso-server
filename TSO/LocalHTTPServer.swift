@@ -10,6 +10,7 @@ final class LocalHTTPServer: ObservableObject {
     @Published private(set) var currentFileName: String?
 
     private let resourceDirectoryName: String
+    private let nestedDocumentsDirectoryName = "TSO"
     private var server: LoopbackHTTPServer?
     private var startTask: Task<Void, Never>?
     private var port: UInt16?
@@ -26,7 +27,7 @@ final class LocalHTTPServer: ObservableObject {
             guard let self else { return }
 
             do {
-                guard let resourceURL = Bundle.main.resourceURL?.appendingPathComponent(resourceDirectoryName, isDirectory: true) else {
+                guard let resourceURL = self.currentDocumentRootURL() else {
                     throw LocalHTTPServerError.missingResourceDirectory(resourceDirectoryName)
                 }
 
@@ -64,19 +65,38 @@ final class LocalHTTPServer: ObservableObject {
     }
 
     func refreshHTMLFileNames() {
-        guard let resourceURL = Bundle.main.resourceURL?.appendingPathComponent(resourceDirectoryName, isDirectory: true),
-              let contents = try? FileManager.default.contentsOfDirectory(
-                at: resourceURL,
-                includingPropertiesForKeys: nil
-              ) else {
+        guard let resourceURL = currentDocumentRootURL(),
+              let contents = try? htmlFiles(in: resourceURL) else {
             htmlFileNames = []
             return
         }
 
         htmlFileNames = contents
-            .filter { ["html", "htm"].contains($0.pathExtension.lowercased()) }
             .map(\.lastPathComponent)
             .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+    }
+
+    private func currentDocumentRootURL() -> URL? {
+        let fileManager = FileManager.default
+
+        if let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
+            if let files = try? htmlFiles(in: documentsURL), !files.isEmpty {
+                return documentsURL
+            }
+
+            let tsoURL = documentsURL.appendingPathComponent(nestedDocumentsDirectoryName, isDirectory: true)
+            if let files = try? htmlFiles(in: tsoURL), !files.isEmpty {
+                return tsoURL
+            }
+        }
+
+        return Bundle.main.resourceURL?.appendingPathComponent(resourceDirectoryName, isDirectory: true)
+    }
+
+    private func htmlFiles(in directoryURL: URL) throws -> [URL] {
+        try FileManager.default
+            .contentsOfDirectory(at: directoryURL, includingPropertiesForKeys: nil)
+            .filter { ["html", "htm"].contains($0.pathExtension.lowercased()) }
     }
 }
 
