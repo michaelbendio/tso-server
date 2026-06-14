@@ -26,6 +26,7 @@ require_file() {
 
 require_file "$ALBQ_DIR/albq.html"
 require_file "$ALBQ_DIR/albq-resource-package.zip"
+require_file "$ALBQ_DIR/jszip.min.js"
 require_file "$TSO_RESOURCES_DIR/tso.html"
 require_file "$TSO_RESOURCES_DIR/tso-resource-package.zip"
 
@@ -39,6 +40,7 @@ mkdir -p "$payload_dir/TSO"
 
 cp -p "$ALBQ_DIR/albq.html" "$payload_dir/TSO/albq.html"
 cp -p "$ALBQ_DIR/albq-resource-package.zip" "$payload_dir/TSO/albq-resource-package.zip"
+cp -p "$ALBQ_DIR/jszip.min.js" "$payload_dir/TSO/jszip.min.js"
 cp -p "$TSO_RESOURCES_DIR/tso.html" "$payload_dir/TSO/tso.html"
 cp -p "$TSO_RESOURCES_DIR/tso-resource-package.zip" "$payload_dir/TSO/tso-resource-package.zip"
 

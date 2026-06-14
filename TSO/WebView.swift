@@ -24,8 +24,9 @@ struct WebView: UIViewRepresentable {
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
-        guard webView.url == nil else { return }
-        webView.load(URLRequest(url: url))
+        if webView.url != url {
+            webView.load(URLRequest(url: url))
+        }
     }
 
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {

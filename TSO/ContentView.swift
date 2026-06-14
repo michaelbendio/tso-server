@@ -29,7 +29,6 @@ struct ContentView: View {
                     WebView(url: url) { externalURL in
                         safariItem = SafariItem(url: externalURL)
                     }
-                    .id(url)
                     .ignoresSafeArea(edges: .bottom)
                 }
             } else if let message = server.errorMessage {
