@@ -11,6 +11,7 @@ final class LocalHTTPServer: ObservableObject {
 
     private let resourceDirectoryName: String
     private let nestedDocumentsDirectoryName = "TSO"
+    private let runtimeDirectoryName = "ServedWWW"
     private var server: LoopbackHTTPServer?
     private var startTask: Task<Void, Never>?
     private var port: UInt16?
@@ -27,7 +28,8 @@ final class LocalHTTPServer: ObservableObject {
             guard let self else { return }
 
             do {
-                guard let resourceURL = self.currentDocumentRootURL() else {
+                guard let resourceURL = self.currentDocumentRootURL(),
+                      FileManager.default.fileExists(atPath: resourceURL.path) else {
                     throw LocalHTTPServerError.missingResourceDirectory(resourceDirectoryName)
                 }
 
@@ -77,20 +79,65 @@ final class LocalHTTPServer: ObservableObject {
     }
 
     private func currentDocumentRootURL() -> URL? {
+        try? rebuildRuntimeDocumentRoot()
+        return runtimeDocumentRootURL()
+    }
+
+    private func rebuildRuntimeDocumentRoot() throws {
         let fileManager = FileManager.default
+        guard let runtimeURL = runtimeDocumentRootURL() else { return }
 
-        if let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
-            if let files = try? htmlFiles(in: documentsURL), !files.isEmpty {
-                return documentsURL
-            }
+        if fileManager.fileExists(atPath: runtimeURL.path) {
+            try fileManager.removeItem(at: runtimeURL)
+        }
+        try fileManager.createDirectory(at: runtimeURL, withIntermediateDirectories: true)
 
-            let tsoURL = documentsURL.appendingPathComponent(nestedDocumentsDirectoryName, isDirectory: true)
-            if let files = try? htmlFiles(in: tsoURL), !files.isEmpty {
-                return tsoURL
-            }
+        for sourceURL in sourceDirectoryURLs() where fileManager.fileExists(atPath: sourceURL.path) {
+            try copyDirectoryContents(from: sourceURL, to: runtimeURL)
+        }
+    }
+
+    private func runtimeDocumentRootURL() -> URL? {
+        FileManager.default
+            .urls(for: .cachesDirectory, in: .userDomainMask)
+            .first?
+            .appendingPathComponent(runtimeDirectoryName, isDirectory: true)
+    }
+
+    private func sourceDirectoryURLs() -> [URL] {
+        let fileManager = FileManager.default
+        var urls: [URL] = []
+
+        if let bundledURL = Bundle.main.resourceURL?.appendingPathComponent(resourceDirectoryName, isDirectory: true) {
+            urls.append(bundledURL)
         }
 
-        return Bundle.main.resourceURL?.appendingPathComponent(resourceDirectoryName, isDirectory: true)
+        if let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
+            urls.append(documentsURL.appendingPathComponent("tso-server/TSO/www", isDirectory: true))
+            urls.append(documentsURL.appendingPathComponent("tso-server/www", isDirectory: true))
+            urls.append(documentsURL.appendingPathComponent("\(nestedDocumentsDirectoryName)/www", isDirectory: true))
+            urls.append(documentsURL.appendingPathComponent(nestedDocumentsDirectoryName, isDirectory: true))
+            urls.append(documentsURL)
+        }
+
+        return urls
+    }
+
+    private func copyDirectoryContents(from sourceURL: URL, to destinationURL: URL) throws {
+        let fileManager = FileManager.default
+        let contents = try fileManager.contentsOfDirectory(
+            at: sourceURL,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles]
+        )
+
+        for itemURL in contents {
+            let destinationItemURL = destinationURL.appendingPathComponent(itemURL.lastPathComponent)
+            if fileManager.fileExists(atPath: destinationItemURL.path) {
+                try fileManager.removeItem(at: destinationItemURL)
+            }
+            try fileManager.copyItem(at: itemURL, to: destinationItemURL)
+        }
     }
 
     private func htmlFiles(in directoryURL: URL) throws -> [URL] {
