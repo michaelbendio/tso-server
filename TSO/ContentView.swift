@@ -1,9 +1,11 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ContentView: View {
     @StateObject private var server = LocalHTTPServer(resourceDirectoryName: "www")
     @State private var safariItem: SafariItem?
     @State private var isShowingFilePicker = false
+    @State private var isShowingFolderPicker = false
 
     var body: some View {
         Group {
@@ -15,6 +17,11 @@ struct ContentView: View {
                             .lineLimit(1)
 
                         Spacer()
+
+                        Button("Choose Folder") {
+                            isShowingFolderPicker = true
+                        }
+                        .buttonStyle(.bordered)
 
                         Button("Switch") {
                             server.refreshHTMLFileNames()
@@ -31,6 +38,13 @@ struct ContentView: View {
                     }
                     .ignoresSafeArea(edges: .bottom)
                 }
+            } else if server.needsSourceFolderSelection {
+                FolderSelectionView(
+                    message: server.errorMessage,
+                    onChooseFolder: {
+                        isShowingFolderPicker = true
+                    }
+                )
             } else if let message = server.errorMessage {
                 Text(message)
                     .font(.body)
@@ -40,7 +54,10 @@ struct ContentView: View {
                 HTMLFilePickerView(
                     title: "Choose TSO File",
                     fileNames: server.htmlFileNames,
-                    currentFileName: server.currentFileName
+                    currentFileName: server.currentFileName,
+                    onChooseFolder: {
+                        isShowingFolderPicker = true
+                    }
                 ) { fileName in
                     server.switchTo(fileName: fileName)
                 }
@@ -50,7 +67,10 @@ struct ContentView: View {
             HTMLFilePickerView(
                 title: "Switch TSO File",
                 fileNames: server.htmlFileNames,
-                currentFileName: server.currentFileName
+                currentFileName: server.currentFileName,
+                onChooseFolder: {
+                    isShowingFolderPicker = true
+                }
             ) { fileName in
                 server.switchTo(fileName: fileName)
                 isShowingFilePicker = false
@@ -61,6 +81,42 @@ struct ContentView: View {
             SafariView(url: item.url)
                 .ignoresSafeArea()
         }
+        .fileImporter(
+            isPresented: $isShowingFolderPicker,
+            allowedContentTypes: [.folder],
+            allowsMultipleSelection: false
+        ) { result in
+            switch result {
+            case .success(let urls):
+                if let url = urls.first {
+                    server.setSourceDirectory(url)
+                }
+            case .failure(let error):
+                server.setFolderSelectionError(error)
+            }
+        }
+        .onAppear {
+            if server.needsSourceFolderSelection {
+                isShowingFolderPicker = true
+            }
+        }
+    }
+}
+
+private struct FolderSelectionView: View {
+    let message: String?
+    let onChooseFolder: () -> Void
+
+    var body: some View {
+        ContentUnavailableView {
+            Label("Choose TSO Folder", systemImage: "folder")
+        } description: {
+            Text(message ?? "Choose the folder that contains the HTML files to serve.")
+        } actions: {
+            Button("Choose Folder", action: onChooseFolder)
+                .buttonStyle(.borderedProminent)
+        }
+        .padding()
     }
 }
 
@@ -68,6 +124,7 @@ private struct HTMLFilePickerView: View {
     let title: String
     let fileNames: [String]
     let currentFileName: String?
+    let onChooseFolder: () -> Void
     let onSelect: (String) -> Void
 
     var body: some View {
@@ -77,7 +134,7 @@ private struct HTMLFilePickerView: View {
                     ContentUnavailableView(
                         "No HTML Files",
                         systemImage: "doc.text.magnifyingglass",
-                        description: Text("Add .html files to the TSO folder or bundled www folder.")
+                        description: Text("Add .html files to the selected TSO folder.")
                     )
                 } else {
                     List(fileNames, id: \.self) { fileName in
@@ -100,6 +157,11 @@ private struct HTMLFilePickerView: View {
                 }
             }
             .navigationTitle(title)
+            .toolbar {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button("Choose Folder", action: onChooseFolder)
+                }
+            }
         }
     }
 }

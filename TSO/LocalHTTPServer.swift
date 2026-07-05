@@ -8,17 +8,121 @@ final class LocalHTTPServer: ObservableObject {
     @Published private(set) var errorMessage: String?
     @Published private(set) var htmlFileNames: [String] = []
     @Published private(set) var currentFileName: String?
+    @Published private(set) var sourceFolderURL: URL?
+    @Published private(set) var needsSourceFolderSelection = true
 
     private let resourceDirectoryName: String
-    private let nestedDocumentsDirectoryName = "TSO"
+    private let sourceFolderBookmarkKey = "TSOSourceFolderBookmark"
     private let runtimeDirectoryName = "ServedWWW"
     private var server: LoopbackHTTPServer?
     private var startTask: Task<Void, Never>?
     private var port: UInt16?
+    private var reloadCounter = 0
 
     init(resourceDirectoryName: String) {
         self.resourceDirectoryName = resourceDirectoryName
+        restoreBookmarkedSourceDirectory()
         refreshHTMLFileNames()
+    }
+
+    func setFolderSelectionError(_ error: Error) {
+        errorMessage = "Unable to choose TSO folder: \(error.localizedDescription)"
+    }
+
+    func setSourceDirectory(_ url: URL) {
+        do {
+            let containsHTMLFiles = try withSecurityScopedAccess(to: url) {
+                let containsHTMLFiles = try !htmlFiles(in: url).isEmpty
+                if containsHTMLFiles {
+                    try saveSourceDirectoryBookmark(for: url)
+                }
+                return containsHTMLFiles
+            }
+
+            guard containsHTMLFiles else {
+                errorMessage = "The selected folder does not contain HTML files."
+                return
+            }
+
+            sourceFolderURL = url
+            needsSourceFolderSelection = false
+            errorMessage = nil
+            refreshHTMLFileNames()
+            reloadCurrentFileIfNeeded()
+        } catch {
+            errorMessage = "Unable to use TSO folder: \(error.localizedDescription)"
+        }
+    }
+
+    private func restoreBookmarkedSourceDirectory() {
+        guard let bookmarkData = UserDefaults.standard.data(forKey: sourceFolderBookmarkKey) else { return }
+
+        do {
+            var isStale = false
+            let url = try URL(
+                resolvingBookmarkData: bookmarkData,
+                options: bookmarkResolutionOptions,
+                relativeTo: nil,
+                bookmarkDataIsStale: &isStale
+            )
+
+            let containsHTMLFiles = try withSecurityScopedAccess(to: url) {
+                let containsHTMLFiles = try !htmlFiles(in: url).isEmpty
+                if containsHTMLFiles && isStale {
+                    try saveSourceDirectoryBookmark(for: url)
+                }
+                return containsHTMLFiles
+            }
+
+            guard containsHTMLFiles else {
+                needsSourceFolderSelection = true
+                errorMessage = "The remembered TSO folder does not contain HTML files."
+                return
+            }
+
+            sourceFolderURL = url
+            needsSourceFolderSelection = false
+            errorMessage = nil
+        } catch {
+            needsSourceFolderSelection = true
+            errorMessage = "Unable to restore TSO folder: \(error.localizedDescription)"
+        }
+    }
+
+    private func saveSourceDirectoryBookmark(for url: URL) throws {
+        let bookmarkData = try url.bookmarkData(
+            options: bookmarkCreationOptions,
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil
+        )
+        UserDefaults.standard.set(bookmarkData, forKey: sourceFolderBookmarkKey)
+    }
+
+    private var bookmarkCreationOptions: URL.BookmarkCreationOptions {
+        #if os(macOS)
+        return [.withSecurityScope]
+        #else
+        return []
+        #endif
+    }
+
+    private var bookmarkResolutionOptions: URL.BookmarkResolutionOptions {
+        #if os(macOS)
+        return [.withSecurityScope]
+        #else
+        return []
+        #endif
+    }
+
+    private func withSecurityScopedAccess<T>(to url: URL, _ work: () throws -> T) rethrows -> T {
+        let didStartAccessing = url.startAccessingSecurityScopedResource()
+        defer {
+            if didStartAccessing {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
+
+        return try work()
     }
 
     func start(defaultFileName: String) async {
@@ -28,19 +132,26 @@ final class LocalHTTPServer: ObservableObject {
             guard let self else { return }
 
             do {
-                guard let resourceURL = self.currentDocumentRootURL(),
-                      FileManager.default.fileExists(atPath: resourceURL.path) else {
+                guard let resourceURL = self.currentDocumentRootURL() else {
                     throw LocalHTTPServerError.missingResourceDirectory(resourceDirectoryName)
                 }
 
-                let server = LoopbackHTTPServer(documentRoot: resourceURL, defaultFileName: defaultFileName)
+                let resourceExists = FileManager.default.fileExists(atPath: resourceURL.path)
+                guard resourceExists else {
+                    throw LocalHTTPServerError.missingResourceDirectory(resourceDirectoryName)
+                }
+
+                let server = LoopbackHTTPServer(
+                    documentRoot: resourceURL,
+                    defaultFileName: defaultFileName
+                )
                 let port = try await server.start()
 
                 await MainActor.run {
                     self.server = server
                     self.port = port
                     self.currentFileName = defaultFileName
-                    self.startURL = URL(string: "http://127.0.0.1:\(port)/\(defaultFileName)")
+                    self.startURL = self.url(for: defaultFileName, port: port)
                     self.startTask = nil
                 }
             } catch {
@@ -63,19 +174,29 @@ final class LocalHTTPServer: ObservableObject {
         guard let port else { return }
         server?.setDefaultFileName(fileName)
         currentFileName = fileName
-        startURL = URL(string: "http://127.0.0.1:\(port)/\(fileName)")
+        startURL = url(for: fileName, port: port)
     }
 
     func refreshHTMLFileNames() {
-        guard let resourceURL = currentDocumentRootURL(),
-              let contents = try? htmlFiles(in: resourceURL) else {
+        guard !needsSourceFolderSelection else {
             htmlFileNames = []
             return
         }
 
-        htmlFileNames = contents
-            .map(\.lastPathComponent)
-            .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+        guard let resourceURL = currentDocumentRootURL() else {
+            htmlFileNames = []
+            return
+        }
+
+        do {
+            let contents = try htmlFiles(in: resourceURL)
+
+            htmlFileNames = contents
+                .map(\.lastPathComponent)
+                .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+        } catch {
+            htmlFileNames = []
+        }
     }
 
     private func currentDocumentRootURL() -> URL? {
@@ -92,8 +213,11 @@ final class LocalHTTPServer: ObservableObject {
         }
         try fileManager.createDirectory(at: runtimeURL, withIntermediateDirectories: true)
 
-        for sourceURL in sourceDirectoryURLs() where fileManager.fileExists(atPath: sourceURL.path) {
-            try copyDirectoryContents(from: sourceURL, to: runtimeURL)
+        for sourceURL in sourceDirectoryURLs() {
+            try withSecurityScopedAccess(to: sourceURL) {
+                guard fileManager.fileExists(atPath: sourceURL.path) else { return }
+                try copyDirectoryContents(from: sourceURL, to: runtimeURL)
+            }
         }
     }
 
@@ -107,16 +231,16 @@ final class LocalHTTPServer: ObservableObject {
     private func sourceDirectoryURLs() -> [URL] {
         let fileManager = FileManager.default
         var urls: [URL] = []
-
         if let bundledURL = Bundle.main.resourceURL?.appendingPathComponent(resourceDirectoryName, isDirectory: true) {
             urls.append(bundledURL)
         }
 
+        if let sourceFolderURL {
+            urls.append(sourceFolderURL)
+            return urls
+        }
+
         if let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
-            urls.append(documentsURL.appendingPathComponent("tso-server/TSO/www", isDirectory: true))
-            urls.append(documentsURL.appendingPathComponent("tso-server/www", isDirectory: true))
-            urls.append(documentsURL.appendingPathComponent("\(nestedDocumentsDirectoryName)/www", isDirectory: true))
-            urls.append(documentsURL.appendingPathComponent(nestedDocumentsDirectoryName, isDirectory: true))
             urls.append(documentsURL)
         }
 
@@ -144,6 +268,34 @@ final class LocalHTTPServer: ObservableObject {
         try FileManager.default
             .contentsOfDirectory(at: directoryURL, includingPropertiesForKeys: nil)
             .filter { ["html", "htm"].contains($0.pathExtension.lowercased()) }
+    }
+
+    private func reloadCurrentFileIfNeeded() {
+        guard let currentFileName, let port else { return }
+
+        let nextFileName = htmlFileNames.contains(currentFileName)
+            ? currentFileName
+            : htmlFileNames.first
+
+        guard let nextFileName else { return }
+
+        server?.setDefaultFileName(nextFileName)
+        self.currentFileName = nextFileName
+        startURL = url(for: nextFileName, port: port)
+    }
+
+    private func url(for fileName: String, port: UInt16) -> URL? {
+        reloadCounter += 1
+
+        var components = URLComponents()
+        components.scheme = "http"
+        components.host = "127.0.0.1"
+        components.port = Int(port)
+        components.path = "/" + fileName
+        components.queryItems = [
+            URLQueryItem(name: "reload", value: String(reloadCounter))
+        ]
+        return components.url
     }
 }
 

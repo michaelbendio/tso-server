@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Albuquerque TSO resources</title>
+<title>&lt;New&gt; TSO Resources</title>
 
 <!-- ===== APP CSS START ===== -->
 <style>
@@ -315,6 +315,32 @@ textarea.services-editor { min-height:320px; resize:vertical; }
 .admin-help-content ol,
 .admin-help-content ul { margin:8px 0 0 22px; padding:0; }
 .admin-help-content li { margin:4px 0; }
+.admin-setup-panel label { display:block; font-weight:bold; margin-bottom:10px; }
+.admin-setup-panel input { width:100%; box-sizing:border-box; margin-top:4px; }
+.admin-setup-note { color:#555; font-size:16px; margin:6px 0 12px; }
+.admin-setup-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:12px; }
+.setup-mockup {
+  border:1px solid #dde6ef;
+  border-radius:6px;
+  padding:12px;
+  margin-top:10px;
+  background:#fafcff;
+}
+.setup-mockup-grid {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;
+  margin-bottom:10px;
+}
+.setup-mockup-category,
+.setup-mockup-resource {
+  border:1px solid #c8d6e5;
+  border-radius:6px;
+  background:white;
+  padding:8px 10px;
+}
+.setup-mockup-category { font-weight:bold; color:#003366; text-align:center; }
+.setup-mockup-resource strong { display:block; margin-bottom:4px; }
 
 /* Print modal */
 #printModal {
@@ -465,14 +491,14 @@ textarea.services-editor { min-height:320px; resize:vertical; }
 -->
 
 <div id="appErrorBanner" style="display:none; position:fixed; top:0; left:0; right:0; background:#ffd9d9; border-bottom:2px solid #c00; z-index:9999; padding:10px; font-size:16px;">
-  <strong>Albuquerque TSO resources error</strong>
+  <strong>&lt;New&gt; TSO Resources error</strong>
   <pre id="appErrorDetails" style="white-space:pre-wrap;"></pre>
   <button class="button" id="appErrorCopy">Copy</button>
   <button class="button" id="appErrorDismiss">Dismiss</button>
 </div>
 
 <div class="topbar">
-  <div class="title" id="appTitle">Albuquerque TSO Resources</div>
+  <div class="title" id="appTitle">&lt;New&gt; TSO Resources</div>
   <div class="tabs">
     <span id="tabSearch" role="button" aria-label="Search" title="Search">&#128269;</span>
     <span id="tabCategories">Categories</span>
@@ -649,32 +675,8 @@ function normalizeDataVerifiedOnShape(nextData){
 }
 
 const DEFAULT_CATEGORY_PRESET_VERSION = 1;
-// Fresh installs start with these empty categories so users can merge or enter
-// resources without first building the navigation structure by hand.
-const DEFAULT_CATEGORY_LABELS = [
-  "Addiction",
-  "Children/Pregnancy",
-  "Clothing/Household",
-  "Disability",
-  "Domestic Violence",
-  "Education",
-  "Employment",
-  "Financial Assistance",
-  "Reentry Support",
-  "Food",
-  "Medical, Dental, Vision",
-  "Homeless Services",
-  "Housing",
-  "ID Recovery",
-  "Immigration",
-  "Legal",
-  "Mental Health",
-  "Miscellaneous",
-  "Seniors",
-  "Transportation",
-  "Utilities, Phone, Internet",
-  "Veterans"
-];
+// Experimental new.html starts with no preset categories.
+const DEFAULT_CATEGORY_LABELS = [];
 
 function applyDefaultCategoryPreset(nextData){
   if(!nextData || typeof nextData !== "object") return false;
@@ -1144,13 +1146,15 @@ function fitTextareaToText(textarea){
 
 const seed = JSON.parse(document.getElementById("seed-data").textContent);
 // Main persisted app data snapshot (categories/resources + metadata).
-let data = JSON.parse(localStorage.getItem("albqData") || "null");
-const APP_VERSION = "0.2.0";
+const DATA_STORAGE_KEY = "newData";
+let data = JSON.parse(localStorage.getItem(DATA_STORAGE_KEY) || "null");
+const APP_VERSION = "0.1.8";
 const DEBUG = new URLSearchParams(location.search).has("debug");
-const UPDATE_SEEN_STORAGE_KEY = "albqRecentUpdatesSeen";
-const PRINT_SELECTION_STORAGE_KEY = "albqPrintSelection";
-const LEGACY_FAVORITES_STORAGE_KEY = "albqFavorites";
-const ONE_TIME_TIP_STORAGE_KEY = "albqPrintSelectionTipSeen";
+const UPDATE_SEEN_STORAGE_KEY = "newRecentUpdatesSeen";
+const PRINT_SELECTION_STORAGE_KEY = "newPrintSelection";
+const LEGACY_FAVORITES_STORAGE_KEY = "newFavorites";
+const ONE_TIME_TIP_STORAGE_KEY = "newPrintSelectionTipSeen";
+const TSO_NAME_STORAGE_KEY = "newTsoName";
 const RESOURCE_PACKAGE_FILENAME = "albq-resources.json";
 const CATEGORY_REMINDER_TEXT = "Report bugs or request enhancments to Elder Bendio (michaelbendio@gmail.com)"
 
@@ -1158,8 +1162,8 @@ if(!data){
   data = seed;
 }
 const appliedCategoryPreset = applyDefaultCategoryPreset(data);
-if(!localStorage.getItem("albqData") || appliedCategoryPreset){
-  localStorage.setItem("albqData", JSON.stringify(data));
+if(!localStorage.getItem(DATA_STORAGE_KEY) || appliedCategoryPreset){
+  localStorage.setItem(DATA_STORAGE_KEY, JSON.stringify(data));
 }
 
 normalizeDataInformationShape(data);
@@ -1860,25 +1864,15 @@ function runSelfTests(){
   });
 
   tests.push({
-    name: "DEFAULT CATEGORY PRESET",
+    name: "NO DEFAULT CATEGORY PRESET",
     fn: () => {
       const sample = { categories:[], resources:[] };
       const applied = applyDefaultCategoryPreset(sample);
-      if(!applied) throw new Error("category preset was not applied");
+      if(!applied) throw new Error("empty category preset version was not applied");
       if(sample.categoryPresetVersion !== DEFAULT_CATEGORY_PRESET_VERSION){
         throw new Error("category preset version was not recorded");
       }
-      if(sample.categories.length !== DEFAULT_CATEGORY_LABELS.length){
-        throw new Error(`expected ${DEFAULT_CATEGORY_LABELS.length} preset categories, got ${sample.categories.length}`);
-      }
-      if(!sample.categories.some(category => category.label === "Utilities, Phone, Internet")){
-        throw new Error("missing Utilities, Phone, Internet category");
-      }
-      sample.categories = sample.categories.filter(category => category.label !== "Addiction");
-      applyDefaultCategoryPreset(sample);
-      if(sample.categories.some(category => category.label === "Addiction")){
-        throw new Error("deleted preset category was recreated after version marker");
-      }
+      if(sample.categories.length !== 0) throw new Error("new.html should not add preset categories");
     }
   });
 
@@ -2148,7 +2142,7 @@ function runSelfTests(){
       const previousAdminTab = adminTab;
       const previousSelectedAdminTag = selectedAdminTag;
       const previousUndo = localStorage.getItem(UNDO_STORAGE_KEY);
-      const previousStoredData = localStorage.getItem("albqData");
+      const previousStoredData = localStorage.getItem(DATA_STORAGE_KEY);
       try{
         data = {
           categories:[{ id:"education", label:"Education" }],
@@ -2186,8 +2180,8 @@ function runSelfTests(){
         selectedAdminTag = previousSelectedAdminTag;
         if(previousUndo === null) localStorage.removeItem(UNDO_STORAGE_KEY);
         else localStorage.setItem(UNDO_STORAGE_KEY, previousUndo);
-        if(previousStoredData === null) localStorage.removeItem("albqData");
-        else localStorage.setItem("albqData", previousStoredData);
+        if(previousStoredData === null) localStorage.removeItem(DATA_STORAGE_KEY);
+        else localStorage.setItem(DATA_STORAGE_KEY, previousStoredData);
       }
     }
   });
@@ -2705,6 +2699,23 @@ if(searchInput){
   });
 }
 const appTitle = document.getElementById("appTitle");
+function getTsoName(){
+  return String(localStorage.getItem(TSO_NAME_STORAGE_KEY) || "").trim();
+}
+
+function getAppTitleText(){
+  const tsoName = getTsoName();
+  return `${tsoName || "<New>"} TSO Resources`;
+}
+
+function refreshAppTitle(){
+  const titleText = getAppTitleText();
+  document.title = titleText;
+  if(appTitle) appTitle.textContent = titleText;
+}
+
+refreshAppTitle();
+
 function toggleUpdateInfoView(){
   if(view === "recent-updates" && showUpdateInfo){
     showUpdateInfo = false;
@@ -2724,6 +2735,95 @@ function toggleUpdateInfoView(){
   safeRender();
 }
 if(appTitle) appTitle.onclick = toggleUpdateInfoView;
+
+function showAdminSetup(){
+  const modal = getReferenceModal();
+  modal.innerHTML = `
+    <div class="reference-modal-panel" role="dialog" aria-modal="true" aria-labelledby="adminSetupTitle">
+      <div class="reference-modal-header">
+        <div id="adminSetupTitle" class="reference-modal-title">Admin Setup</div>
+        <button class="button reference-modal-close" type="button">Close</button>
+      </div>
+      <div class="reference-modal-body admin-setup-panel">
+        <label for="adminSetupTsoName">What is the name of your TSO?
+          <input id="adminSetupTsoName" type="text" value="${escapeHTML(getTsoName())}" placeholder="Example: Provo">
+        </label>
+        <p class="admin-setup-note">This name appears in the blue title bar. You can change it and save again until it looks right.</p>
+        <div class="admin-setup-actions">
+          <button class="button primary" type="button" id="adminSetupSaveName">Save TSO Name</button>
+        </div>
+        <p class="admin-setup-note">After the blue bar looks right, rename <code>new.html</code> to match your TSO, such as <code>provo.html</code> or <code>albuquerque.html</code>.</p>
+        <p class="admin-setup-note">To enter or leave Admin mode later, press <code>Ctrl+Alt+A</code>. When Admin mode is enabled, click the <code>Admin</code> button in the blue bar.</p>
+
+        <h3>What this app does</h3>
+        <p>This app organizes local resource information into categories. Users click a category, open a resource, review contact details and service information, select resources for printing, and print a handout.</p>
+        <div class="setup-mockup" aria-label="Example resource layout">
+          <div class="setup-mockup-grid">
+            <div class="setup-mockup-category">Food</div>
+            <div class="setup-mockup-category">Housing</div>
+            <div class="setup-mockup-category">Employment</div>
+            <div class="setup-mockup-category">Utilities</div>
+            <div class="setup-mockup-category">Medical</div>
+            <div class="setup-mockup-category">Transportation</div>
+          </div>
+          <div class="setup-mockup-resource">
+            <strong>Example Resource</strong>
+            <div>Phone, address, hours, service details, and print selection appear here.</div>
+          </div>
+        </div>
+        <p class="admin-setup-note">Click Help for quick start instructions.</p>
+        <div class="admin-setup-actions">
+          <button class="button primary" type="button" id="adminSetupOpenAdmin">Open Admin</button>
+          <button class="button" type="button" id="adminSetupOpenHelp">Open Help</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const closeBtn = modal.querySelector(".reference-modal-close");
+  const nameInput = document.getElementById("adminSetupTsoName");
+  const saveBtn = document.getElementById("adminSetupSaveName");
+  const openAdminBtn = document.getElementById("adminSetupOpenAdmin");
+  const openHelpBtn = document.getElementById("adminSetupOpenHelp");
+
+  function saveName(){
+    const nextName = String(nameInput ? nameInput.value : "").trim();
+    if(nextName){
+      localStorage.setItem(TSO_NAME_STORAGE_KEY, nextName);
+    }else{
+      localStorage.removeItem(TSO_NAME_STORAGE_KEY);
+    }
+    refreshAppTitle();
+    safeRender();
+    showToast("TSO name saved.");
+  }
+
+  if(closeBtn) closeBtn.addEventListener("click", closeReferenceModal);
+  if(saveBtn) saveBtn.addEventListener("click", saveName);
+  if(nameInput){
+    nameInput.addEventListener("keydown", event => {
+      if(event.key !== "Enter") return;
+      event.preventDefault();
+      saveName();
+    });
+  }
+  if(openAdminBtn){
+    openAdminBtn.addEventListener("click", () => {
+      saveName();
+      closeReferenceModal();
+      setAdminVisibility(true);
+      setView("admin");
+    });
+  }
+  if(openHelpBtn){
+    openHelpBtn.addEventListener("click", () => {
+      saveName();
+      showAdminHelp();
+    });
+  }
+  modal.classList.remove("hidden");
+  if(nameInput) nameInput.focus();
+}
 
 function showUserHelp(){
   const modal = getReferenceModal();
@@ -2749,7 +2849,7 @@ function showUserHelp(){
         <p>Review the selected resources and print the handout.</p>
         <p>To save the handout as a PDF, choose Print, select Print to PDF as the printer, then click Print and choose where to save the file.</p>
         <h3>Application Information</h3>
-        <p>Click Albuquerque TSO Resources to see the current version number and recent updates and changes.</p>
+        <p>Click &lt;New&gt; TSO Resources to see the current version number and recent updates and changes.</p>
         <h3>Merging Resource Updates</h3>
         <p>Click Categories in the top bar. The Merge Resources button is below the categories on the right side.</p>
         <p>Use Merge Resources to import updated resource information when you are notified that updates are available.</p>
@@ -2773,7 +2873,8 @@ function showAdminHelp(){
         <section class="admin-help-quick-start">
           <h3>Quick Start: First Category and First Resource</h3>
           <ol>
-            <li>Press <code>Ctrl+Alt+A</code>, then open <code>Admin</code>.</li>
+            <li>Press <code>Ctrl+Alt+A</code> to enable or disable Admin mode.</li>
+            <li>When Admin mode is enabled, click <code>Admin</code> in the blue bar.</li>
             <li>In <code>Categories</code>, click <code>New</code>.</li>
             <li>Enter the category name, add an update note like <code>Added first category</code>, and click <code>Done</code>.</li>
             <li>Open <code>Resources</code> and click <code>New</code>.</li>
@@ -2799,7 +2900,7 @@ function showAdminHelp(){
         </details>
 
         <details>
-          <summary>Saving and Sharing Changes</summary>
+          <summary>How do I share my work?</summary>
           <div class="admin-help-section-body">
             <p>Admin edits are saved in your browser first. They are not shared with anyone else until you export a new resource package.</p>
             <p>After a batch of edits:</p>
@@ -3189,6 +3290,23 @@ function render(){
     appView.appendChild(categoryMessage);
   }
 
+  function renderNewAppInstructions(){
+    if(getTsoName()) return;
+    if((Array.isArray(data.categories) && data.categories.length) || (Array.isArray(data.resources) && data.resources.length)) return;
+    const instructions = document.createElement("div");
+    instructions.className = "category-print-banner";
+    instructions.innerHTML = `
+      <div><strong>New TSO app.</strong></div>
+      <div>Name this app for your TSO and see how it works.</div>
+      <div style="margin-top:8px;">
+        <button class="button primary" type="button" id="adminSetupStartButton">Admin Setup</button>
+      </div>
+    `;
+    appView.appendChild(instructions);
+    const setupBtn = document.getElementById("adminSetupStartButton");
+    if(setupBtn) setupBtn.onclick = showAdminSetup;
+  }
+
   function renderMergeResourcesButton(){
     const reloadWrap = document.createElement("div");
     reloadWrap.className = "reload-resources-wrap";
@@ -3216,10 +3334,11 @@ function render(){
     if(pendingRecentUpdates.length){
       const note = document.createElement("div");
       note.className = "category-card";
-      note.innerHTML = `<div>${pendingRecentUpdates.length} new updates loaded.</div><div>Click Albuquerque TSO resources at any time to review updates.</div>`;
+      note.innerHTML = `<div>${pendingRecentUpdates.length} new updates loaded.</div><div>Click &lt;New&gt; TSO Resources at any time to review updates.</div>`;
       appView.appendChild(note);
     }
     renderCategoryReminder();
+    renderNewAppInstructions();
     const grid=document.createElement("div");
     grid.className="grid";
     const updatesByCategory = getCategoryUpdateMap();
@@ -3787,7 +3906,7 @@ function clearChangeLog(){
 // PERSISTENCE
 // ============================================================
 // Storage split:
-// - localStorage keeps the primary JSON snapshot ("albqData").
+// - localStorage keeps the primary JSON snapshot.
 // - localStorage also keeps small UI state such as print selection, undo, and
 //   seen update ids under separate keys.
 // - Save Resources exports the same canonical JSON shape used internally.
@@ -3799,7 +3918,7 @@ function persist(){
   if(DEBUG) assertInvariants("persist");
   data.appVersion = APP_VERSION;
   data.lastModified = nowISO();
-  localStorage.setItem("albqData", JSON.stringify(data));
+  localStorage.setItem(DATA_STORAGE_KEY, JSON.stringify(data));
 }
 
 async function clearAssets(){
