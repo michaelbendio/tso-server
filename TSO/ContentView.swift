@@ -95,11 +95,6 @@ struct ContentView: View {
                 server.setFolderSelectionError(error)
             }
         }
-        .onAppear {
-            if server.needsSourceFolderSelection {
-                isShowingFolderPicker = true
-            }
-        }
     }
 }
 

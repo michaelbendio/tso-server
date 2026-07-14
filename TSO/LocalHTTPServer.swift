@@ -18,6 +18,7 @@ final class LocalHTTPServer: ObservableObject {
     private var startTask: Task<Void, Never>?
     private var port: UInt16?
     private var reloadCounter = 0
+    private var securityScopedURL: URL?
 
     init(resourceDirectoryName: String) {
         self.resourceDirectoryName = resourceDirectoryName
@@ -25,30 +26,49 @@ final class LocalHTTPServer: ObservableObject {
         refreshHTMLFileNames()
     }
 
+    deinit {
+        securityScopedURL?.stopAccessingSecurityScopedResource()
+    }
+
     func setFolderSelectionError(_ error: Error) {
         errorMessage = "Unable to choose TSO folder: \(error.localizedDescription)"
     }
 
     func setSourceDirectory(_ url: URL) {
-        do {
-            let containsHTMLFiles = try withSecurityScopedAccess(to: url) {
-                let containsHTMLFiles = try !htmlFiles(in: url).isEmpty
-                if containsHTMLFiles {
-                    try saveSourceDirectoryBookmark(for: url)
-                }
-                return containsHTMLFiles
+        let directoryURL = url.standardizedFileURL
+        let didStartAccessing = directoryURL.startAccessingSecurityScopedResource()
+        var shouldRetainAccess = false
+
+        defer {
+            if didStartAccessing && !shouldRetainAccess {
+                directoryURL.stopAccessingSecurityScopedResource()
             }
+        }
+
+        do {
+            let containsHTMLFiles = try !htmlFiles(in: directoryURL).isEmpty
 
             guard containsHTMLFiles else {
                 errorMessage = "The selected folder does not contain HTML files."
                 return
             }
 
-            sourceFolderURL = url
+            try saveSourceDirectoryBookmark(for: directoryURL)
+
+            if didStartAccessing {
+                securityScopedURL?.stopAccessingSecurityScopedResource()
+                securityScopedURL = directoryURL
+                shouldRetainAccess = true
+            } else if securityScopedURL?.standardizedFileURL != directoryURL {
+                securityScopedURL?.stopAccessingSecurityScopedResource()
+                securityScopedURL = nil
+            }
+
+            sourceFolderURL = directoryURL
             needsSourceFolderSelection = false
             errorMessage = nil
             refreshHTMLFileNames()
-            reloadCurrentFileIfNeeded()
+            restartCurrentFileIfNeeded()
         } catch {
             errorMessage = "Unable to use TSO folder: \(error.localizedDescription)"
         }
@@ -64,22 +84,32 @@ final class LocalHTTPServer: ObservableObject {
                 options: bookmarkResolutionOptions,
                 relativeTo: nil,
                 bookmarkDataIsStale: &isStale
-            )
+            ).standardizedFileURL
+            let didStartAccessing = url.startAccessingSecurityScopedResource()
 
-            let containsHTMLFiles = try withSecurityScopedAccess(to: url) {
+            do {
                 let containsHTMLFiles = try !htmlFiles(in: url).isEmpty
-                if containsHTMLFiles && isStale {
+
+                guard containsHTMLFiles else {
+                    if didStartAccessing {
+                        url.stopAccessingSecurityScopedResource()
+                    }
+                    needsSourceFolderSelection = true
+                    errorMessage = "The remembered TSO folder does not contain HTML files."
+                    return
+                }
+
+                if isStale {
                     try saveSourceDirectoryBookmark(for: url)
                 }
-                return containsHTMLFiles
+            } catch {
+                if didStartAccessing {
+                    url.stopAccessingSecurityScopedResource()
+                }
+                throw error
             }
 
-            guard containsHTMLFiles else {
-                needsSourceFolderSelection = true
-                errorMessage = "The remembered TSO folder does not contain HTML files."
-                return
-            }
-
+            securityScopedURL = didStartAccessing ? url : nil
             sourceFolderURL = url
             needsSourceFolderSelection = false
             errorMessage = nil
@@ -115,6 +145,10 @@ final class LocalHTTPServer: ObservableObject {
     }
 
     private func withSecurityScopedAccess<T>(to url: URL, _ work: () throws -> T) rethrows -> T {
+        if securityScopedURL?.standardizedFileURL == url.standardizedFileURL {
+            return try work()
+        }
+
         let didStartAccessing = url.startAccessingSecurityScopedResource()
         defer {
             if didStartAccessing {
@@ -128,6 +162,15 @@ final class LocalHTTPServer: ObservableObject {
     func start(defaultFileName: String) async {
         if startURL != nil || startTask != nil { return }
 
+        startServer(defaultFileName: defaultFileName, replacing: nil)
+    }
+
+    private func restart(defaultFileName: String) {
+        guard startTask == nil else { return }
+        startServer(defaultFileName: defaultFileName, replacing: server)
+    }
+
+    private func startServer(defaultFileName: String, replacing previousServer: LoopbackHTTPServer?) {
         startTask = Task { [weak self] in
             guard let self else { return }
 
@@ -148,10 +191,13 @@ final class LocalHTTPServer: ObservableObject {
                 let port = try await server.start()
 
                 await MainActor.run {
+                    // Keeping the previous listener alive until now guarantees a new browser origin.
+                    previousServer?.stop()
                     self.server = server
                     self.port = port
                     self.currentFileName = defaultFileName
                     self.startURL = self.url(for: defaultFileName, port: port)
+                    self.errorMessage = nil
                     self.startTask = nil
                 }
             } catch {
@@ -164,6 +210,8 @@ final class LocalHTTPServer: ObservableObject {
     }
 
     func switchTo(fileName: String) {
+        guard htmlFileNames.contains(fileName) else { return }
+
         if startURL == nil {
             Task {
                 await start(defaultFileName: fileName)
@@ -171,10 +219,7 @@ final class LocalHTTPServer: ObservableObject {
             return
         }
 
-        guard let port else { return }
-        server?.setDefaultFileName(fileName)
-        currentFileName = fileName
-        startURL = url(for: fileName, port: port)
+        restart(defaultFileName: fileName)
     }
 
     func refreshHTMLFileNames() {
@@ -270,8 +315,8 @@ final class LocalHTTPServer: ObservableObject {
             .filter { ["html", "htm"].contains($0.pathExtension.lowercased()) }
     }
 
-    private func reloadCurrentFileIfNeeded() {
-        guard let currentFileName, let port else { return }
+    private func restartCurrentFileIfNeeded() {
+        guard let currentFileName, server != nil else { return }
 
         let nextFileName = htmlFileNames.contains(currentFileName)
             ? currentFileName
@@ -279,9 +324,7 @@ final class LocalHTTPServer: ObservableObject {
 
         guard let nextFileName else { return }
 
-        server?.setDefaultFileName(nextFileName)
-        self.currentFileName = nextFileName
-        startURL = url(for: nextFileName, port: port)
+        restart(defaultFileName: nextFileName)
     }
 
     private func url(for fileName: String, port: UInt16) -> URL? {
@@ -321,9 +364,10 @@ private final class LoopbackHTTPServer {
         self.defaultFileName = defaultFileName
     }
 
-    func setDefaultFileName(_ defaultFileName: String) {
+    func stop() {
         queue.async {
-            self.defaultFileName = defaultFileName
+            self.listener?.cancel()
+            self.listener = nil
         }
     }
 
