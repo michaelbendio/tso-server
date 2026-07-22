@@ -10,26 +10,52 @@
 		AA0000010000000000000001 /* TSOApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000011 /* TSOApp.swift */; };
 		AA0000010000000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000012 /* ContentView.swift */; };
 		AA0000010000000000000003 /* WebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000013 /* WebView.swift */; };
-		AA0000010000000000000004 /* LocalHTTPServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000014 /* LocalHTTPServer.swift */; };
+		AA0000010000000000000004 /* LoopbackHTTPServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000014 /* LoopbackHTTPServer.swift */; };
 		AA0000010000000000000005 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000015 /* Assets.xcassets */; };
-		AA0000010000000000000006 /* www in Resources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000016 /* www */; };
 		AA0000010000000000000007 /* SafariView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000018 /* SafariView.swift */; };
+		AA0000010000000000000008 /* ViewerModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000019 /* ViewerModel.swift */; };
+		AA0000010000000000000009 /* SourceFolderStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000001A /* SourceFolderStore.swift */; };
+		AA000001000000000000000A /* RuntimeSiteBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000001B /* RuntimeSiteBuilder.swift */; };
+		BB0000010000000000000001 /* RuntimeSiteBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000011 /* RuntimeSiteBuilderTests.swift */; };
+		BB0000010000000000000002 /* LoopbackHTTPServerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000012 /* LoopbackHTTPServerTests.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		BB0000010000000000000021 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AA0000010000000000000070 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AA0000010000000000000040;
+			remoteInfo = TSO;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		AA0000010000000000000010 /* TSO.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TSO.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA0000010000000000000011 /* TSOApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TSOApp.swift; sourceTree = "<group>"; };
 		AA0000010000000000000012 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		AA0000010000000000000013 /* WebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebView.swift; sourceTree = "<group>"; };
-		AA0000010000000000000014 /* LocalHTTPServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalHTTPServer.swift; sourceTree = "<group>"; };
+		AA0000010000000000000014 /* LoopbackHTTPServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoopbackHTTPServer.swift; sourceTree = "<group>"; };
 		AA0000010000000000000015 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		AA0000010000000000000016 /* www */ = {isa = PBXFileReference; lastKnownFileType = folder; path = www; sourceTree = "<group>"; };
 		AA0000010000000000000017 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AA0000010000000000000018 /* SafariView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariView.swift; sourceTree = "<group>"; };
+		AA0000010000000000000019 /* ViewerModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewerModel.swift; sourceTree = "<group>"; };
+		AA000001000000000000001A /* SourceFolderStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceFolderStore.swift; sourceTree = "<group>"; };
+		AA000001000000000000001B /* RuntimeSiteBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeSiteBuilder.swift; sourceTree = "<group>"; };
+		BB0000010000000000000010 /* TSOTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TSOTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		BB0000010000000000000011 /* RuntimeSiteBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeSiteBuilderTests.swift; sourceTree = "<group>"; };
+		BB0000010000000000000012 /* LoopbackHTTPServerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoopbackHTTPServerTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		AA0000010000000000000020 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BB0000010000000000000020 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -43,6 +69,7 @@
 			isa = PBXGroup;
 			children = (
 				AA0000010000000000000031 /* TSO */,
+				BB0000010000000000000031 /* TSOTests */,
 				AA0000010000000000000033 /* Config */,
 				AA0000010000000000000032 /* Products */,
 			);
@@ -55,9 +82,11 @@
 				AA0000010000000000000012 /* ContentView.swift */,
 				AA0000010000000000000013 /* WebView.swift */,
 				AA0000010000000000000018 /* SafariView.swift */,
-				AA0000010000000000000014 /* LocalHTTPServer.swift */,
+				AA0000010000000000000019 /* ViewerModel.swift */,
+				AA000001000000000000001A /* SourceFolderStore.swift */,
+				AA000001000000000000001B /* RuntimeSiteBuilder.swift */,
+				AA0000010000000000000014 /* LoopbackHTTPServer.swift */,
 				AA0000010000000000000015 /* Assets.xcassets */,
-				AA0000010000000000000016 /* www */,
 			);
 			path = TSO;
 			sourceTree = "<group>";
@@ -66,8 +95,18 @@
 			isa = PBXGroup;
 			children = (
 				AA0000010000000000000010 /* TSO.app */,
+				BB0000010000000000000010 /* TSOTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		BB0000010000000000000031 /* TSOTests */ = {
+			isa = PBXGroup;
+			children = (
+				BB0000010000000000000011 /* RuntimeSiteBuilderTests.swift */,
+				BB0000010000000000000012 /* LoopbackHTTPServerTests.swift */,
+			);
+			path = TSOTests;
 			sourceTree = "<group>";
 		};
 		AA0000010000000000000033 /* Config */ = {
@@ -88,7 +127,6 @@
 				AA0000010000000000000050 /* Sources */,
 				AA0000010000000000000020 /* Frameworks */,
 				AA0000010000000000000060 /* Resources */,
-				AA0000010000000000000061 /* Embed Current HTML */,
 			);
 			buildRules = (
 			);
@@ -101,6 +139,24 @@
 			productReference = AA0000010000000000000010 /* TSO.app */;
 			productType = "com.apple.product-type.application";
 		};
+		BB0000010000000000000040 /* TSOTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BB0000010000000000000080 /* Build configuration list for PBXNativeTarget "TSOTests" */;
+			buildPhases = (
+				BB0000010000000000000050 /* Sources */,
+				BB0000010000000000000020 /* Frameworks */,
+				BB0000010000000000000060 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				BB0000010000000000000022 /* PBXTargetDependency */,
+			);
+			name = TSOTests;
+			productName = TSOTests;
+			productReference = BB0000010000000000000010 /* TSOTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -109,10 +165,14 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2650;
-				LastUpgradeCheck = 2650;
+				LastUpgradeCheck = 2700;
 				TargetAttributes = {
 					AA0000010000000000000040 = {
 						CreatedOnToolsVersion = 26.5;
+					};
+					BB0000010000000000000040 = {
+						CreatedOnToolsVersion = 27.0;
+						TestTargetID = AA0000010000000000000040;
 					};
 				};
 			};
@@ -131,6 +191,7 @@
 			projectRoot = "";
 			targets = (
 				AA0000010000000000000040 /* TSO */,
+				BB0000010000000000000040 /* TSOTests */,
 			);
 		};
 /* End PBXProject section */
@@ -141,33 +202,17 @@
 			buildActionMask = 2147483647;
 			files = (
 				AA0000010000000000000005 /* Assets.xcassets in Resources */,
-				AA0000010000000000000006 /* www in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BB0000010000000000000060 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		AA0000010000000000000061 /* Embed Current HTML */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Embed Current HTML";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "set -eu\nsrc_www=\"${SRCROOT}/TSO/www\"\nwww_dir=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/www\"\nrm -rf \"$www_dir\"\nmkdir -p \"$www_dir\"\nfind \"$src_www\" -mindepth 1 -maxdepth 1 ! -name .DS_Store -exec cp -RL {} \"$www_dir/\" \\;\n";
-		};
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		AA0000010000000000000050 /* Sources */ = {
@@ -178,11 +223,31 @@
 				AA0000010000000000000002 /* ContentView.swift in Sources */,
 				AA0000010000000000000003 /* WebView.swift in Sources */,
 				AA0000010000000000000007 /* SafariView.swift in Sources */,
-				AA0000010000000000000004 /* LocalHTTPServer.swift in Sources */,
+				AA0000010000000000000008 /* ViewerModel.swift in Sources */,
+				AA0000010000000000000009 /* SourceFolderStore.swift in Sources */,
+				AA000001000000000000000A /* RuntimeSiteBuilder.swift in Sources */,
+				AA0000010000000000000004 /* LoopbackHTTPServer.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BB0000010000000000000050 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BB0000010000000000000001 /* RuntimeSiteBuilderTests.swift in Sources */,
+				BB0000010000000000000002 /* LoopbackHTTPServerTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		BB0000010000000000000022 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AA0000010000000000000040 /* TSO */;
+			targetProxy = BB0000010000000000000021 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		AA0000010000000000000090 /* Debug */ = {
@@ -217,9 +282,12 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 7Y5BBLYU75;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -240,6 +308,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -277,9 +346,12 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 7Y5BBLYU75;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -293,6 +365,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 			};
 			name = Release;
@@ -303,7 +376,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 7Y5BBLYU75;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Config/Info.plist;
@@ -319,7 +392,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -330,7 +403,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 7Y5BBLYU75;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Config/Info.plist;
@@ -346,8 +419,44 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		BB0000010000000000000090 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 7Y5BBLYU75;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.michael-bendio.TSOTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TSO.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/TSO";
+			};
+			name = Debug;
+		};
+		BB0000010000000000000091 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 7Y5BBLYU75;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.michael-bendio.TSOTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TSO.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/TSO";
 			};
 			name = Release;
 		};
@@ -368,6 +477,15 @@
 			buildConfigurations = (
 				AA0000010000000000000092 /* Debug */,
 				AA0000010000000000000093 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BB0000010000000000000080 /* Build configuration list for PBXNativeTarget "TSOTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BB0000010000000000000090 /* Debug */,
+				BB0000010000000000000091 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

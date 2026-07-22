@@ -2,30 +2,28 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct ContentView: View {
-    @StateObject private var server = LocalHTTPServer(resourceDirectoryName: "www")
+    @StateObject private var viewer = ViewerModel()
     @State private var safariItem: SafariItem?
-    @State private var isShowingFilePicker = false
     @State private var isShowingFolderPicker = false
 
     var body: some View {
         Group {
-            if let url = server.startURL {
+            if let url = viewer.startURL {
                 VStack(spacing: 0) {
                     HStack(spacing: 12) {
-                        Text(server.currentFileName ?? url.lastPathComponent)
+                        Text(viewer.currentFileName ?? url.lastPathComponent)
                             .font(.headline)
                             .lineLimit(1)
 
                         Spacer()
 
-                        Button("Choose Folder") {
-                            isShowingFolderPicker = true
+                        if viewer.isRefreshing {
+                            ProgressView()
+                                .controlSize(.small)
                         }
-                        .buttonStyle(.bordered)
 
                         Button("Switch") {
-                            server.refreshHTMLFileNames()
-                            isShowingFilePicker = true
+                            viewer.showFileSelection()
                         }
                         .buttonStyle(.bordered)
                     }
@@ -38,14 +36,16 @@ struct ContentView: View {
                     }
                     .ignoresSafeArea(edges: .bottom)
                 }
-            } else if server.needsSourceFolderSelection {
+            } else if viewer.needsSourceFolderSelection {
                 FolderSelectionView(
-                    message: server.errorMessage,
+                    message: viewer.errorMessage,
                     onChooseFolder: {
                         isShowingFolderPicker = true
                     }
                 )
-            } else if let message = server.errorMessage {
+            } else if viewer.isRefreshing {
+                ProgressView("Loading TSO files…")
+            } else if let message = viewer.errorMessage {
                 Text(message)
                     .font(.body)
                     .multilineTextAlignment(.center)
@@ -53,29 +53,12 @@ struct ContentView: View {
             } else {
                 HTMLFilePickerView(
                     title: "Choose TSO File",
-                    fileNames: server.htmlFileNames,
-                    currentFileName: server.currentFileName,
-                    onChooseFolder: {
-                        isShowingFolderPicker = true
-                    }
+                    fileNames: viewer.htmlFileNames,
+                    currentFileName: viewer.currentFileName
                 ) { fileName in
-                    server.switchTo(fileName: fileName)
+                    viewer.switchTo(fileName: fileName)
                 }
             }
-        }
-        .sheet(isPresented: $isShowingFilePicker) {
-            HTMLFilePickerView(
-                title: "Switch TSO File",
-                fileNames: server.htmlFileNames,
-                currentFileName: server.currentFileName,
-                onChooseFolder: {
-                    isShowingFolderPicker = true
-                }
-            ) { fileName in
-                server.switchTo(fileName: fileName)
-                isShowingFilePicker = false
-            }
-            .presentationDetents([.medium, .large])
         }
         .sheet(item: $safariItem) { item in
             SafariView(url: item.url)
@@ -89,10 +72,32 @@ struct ContentView: View {
             switch result {
             case .success(let urls):
                 if let url = urls.first {
-                    server.setSourceDirectory(url)
+                    viewer.setSourceDirectory(url)
                 }
             case .failure(let error):
-                server.setFolderSelectionError(error)
+                viewer.setFolderSelectionError(error)
+            }
+        }
+        .alert(
+            "TSO Error",
+            isPresented: Binding(
+                get: { viewer.startURL != nil && viewer.errorMessage != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        viewer.clearError()
+                    }
+                }
+            )
+        ) {
+            Button("OK") {
+                viewer.clearError()
+            }
+        } message: {
+            Text(viewer.errorMessage ?? "An unknown error occurred.")
+        }
+        .onAppear {
+            if viewer.needsSourceFolderSelection {
+                isShowingFolderPicker = true
             }
         }
     }
@@ -119,7 +124,6 @@ private struct HTMLFilePickerView: View {
     let title: String
     let fileNames: [String]
     let currentFileName: String?
-    let onChooseFolder: () -> Void
     let onSelect: (String) -> Void
 
     var body: some View {
@@ -152,11 +156,6 @@ private struct HTMLFilePickerView: View {
                 }
             }
             .navigationTitle(title)
-            .toolbar {
-                ToolbarItemGroup(placement: .topBarTrailing) {
-                    Button("Choose Folder", action: onChooseFolder)
-                }
-            }
         }
     }
 }
