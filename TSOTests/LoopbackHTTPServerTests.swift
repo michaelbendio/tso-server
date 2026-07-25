@@ -72,6 +72,49 @@ final class LoopbackHTTPServerTests: XCTestCase {
         XCTAssertEqual(viewer.htmlFileNames, ["file name.html"])
     }
 
+    @MainActor
+    func testSwitchRefreshesStagedHTMLWithoutForgettingFolder() async throws {
+        let suiteName = "TSOTests-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let sourceFolderStore = SourceFolderStore(
+            defaults: defaults,
+            bookmarkKey: "SourceFolderBookmark"
+        )
+        let runtimeURL = temporaryDirectory.appendingPathComponent("Runtime", isDirectory: true)
+        let siteBuilder = RuntimeSiteBuilder(runtimeRootURL: runtimeURL)
+        let viewer = ViewerModel(
+            sourceFolderStore: sourceFolderStore,
+            siteBuilder: siteBuilder,
+            defaults: defaults
+        )
+
+        viewer.setSourceDirectory(temporaryDirectory)
+        while viewer.isRefreshing {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        try Data("updated".utf8).write(
+            to: temporaryDirectory.appendingPathComponent("file name.html")
+        )
+
+        viewer.showFileSelection()
+        while viewer.isRefreshing {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+
+        XCTAssertNil(viewer.startURL)
+        XCTAssertEqual(viewer.sourceFolderURL, temporaryDirectory)
+        XCTAssertFalse(viewer.needsSourceFolderSelection)
+        XCTAssertEqual(
+            try String(
+                contentsOf: runtimeURL.appendingPathComponent("file name.html"),
+                encoding: .utf8
+            ),
+            "updated"
+        )
+    }
+
     func testRootRoutesToDefaultFile() {
         let response = server.response(for: request("GET", "/"))
 

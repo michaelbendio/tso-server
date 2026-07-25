@@ -64,6 +64,9 @@ final class ViewerModel: ObservableObject {
     func showFileSelection() {
         startURL = nil
         errorMessage = nil
+        refreshFiles { [weak self] in
+            self?.startURL = nil
+        }
     }
 
     func refreshFiles(then completion: (() -> Void)? = nil) {
