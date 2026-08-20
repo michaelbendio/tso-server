@@ -7,6 +7,8 @@ struct RuntimeSiteSnapshot: Sendable, Equatable {
 
 enum RuntimeSiteBuilderError: LocalizedError {
     case sourceDirectoryMissing
+    case sourceFileMissing
+    case unsupportedFileType
     case noHTMLFiles
     case symbolicLinkNotAllowed(String)
 
@@ -14,6 +16,10 @@ enum RuntimeSiteBuilderError: LocalizedError {
         switch self {
         case .sourceDirectoryMissing:
             "The selected TSO folder is unavailable. Make sure it remains downloaded in iCloud Drive."
+        case .sourceFileMissing:
+            "The selected HTML file is unavailable."
+        case .unsupportedFileType:
+            "Choose an HTML file (.html or .htm)."
         case .noHTMLFiles:
             "The selected folder does not contain HTML files."
         case .symbolicLinkNotAllowed(let name):
@@ -52,9 +58,7 @@ actor RuntimeSiteBuilder {
 
         try rejectSymbolicLinks(in: sourceURL)
 
-        let stagingURL = runtimeRootURL
-            .deletingLastPathComponent()
-            .appendingPathComponent(".\(runtimeRootURL.lastPathComponent)-\(UUID().uuidString)", isDirectory: true)
+        let stagingURL = makeStagingURL()
         defer { try? fileManager.removeItem(at: stagingURL) }
 
         try fileManager.createDirectory(at: stagingURL, withIntermediateDirectories: true)
@@ -67,6 +71,55 @@ actor RuntimeSiteBuilder {
 
         try installAtomically(stagingURL)
         return RuntimeSiteSnapshot(rootURL: runtimeRootURL, htmlFileNames: htmlFileNames)
+    }
+
+    func build(selectedHTMLFile sourceURL: URL) throws -> RuntimeSiteSnapshot {
+        let didStartAccessing = sourceURL.startAccessingSecurityScopedResource()
+        defer {
+            if didStartAccessing {
+                sourceURL.stopAccessingSecurityScopedResource()
+            }
+        }
+
+        var isDirectory: ObjCBool = false
+        guard fileManager.fileExists(atPath: sourceURL.path, isDirectory: &isDirectory),
+              !isDirectory.boolValue else {
+            throw RuntimeSiteBuilderError.sourceFileMissing
+        }
+
+        guard ["html", "htm"].contains(sourceURL.pathExtension.lowercased()) else {
+            throw RuntimeSiteBuilderError.unsupportedFileType
+        }
+
+        let sourceDirectory = sourceURL.deletingLastPathComponent()
+        let stagingURL = makeStagingURL()
+        defer { try? fileManager.removeItem(at: stagingURL) }
+
+        try fileManager.createDirectory(at: stagingURL, withIntermediateDirectories: true)
+
+        // Copy sibling files too so a standalone HTML app can keep using relative
+        // CSS, JavaScript, images, JSON, and other assets from its own directory.
+        let contents = try fileManager.contentsOfDirectory(
+            at: sourceDirectory,
+            includingPropertiesForKeys: nil,
+            options: [.skipsHiddenFiles]
+        )
+        for itemURL in contents {
+            try Task.checkCancellation()
+            try fileManager.copyItem(
+                at: itemURL,
+                to: stagingURL.appendingPathComponent(itemURL.lastPathComponent)
+            )
+        }
+
+        try installAtomically(stagingURL)
+        return RuntimeSiteSnapshot(rootURL: runtimeRootURL, htmlFileNames: [sourceURL.lastPathComponent])
+    }
+
+    private func makeStagingURL() -> URL {
+        runtimeRootURL
+            .deletingLastPathComponent()
+            .appendingPathComponent(".\(runtimeRootURL.lastPathComponent)-\(UUID().uuidString)", isDirectory: true)
     }
 
     private func installAtomically(_ stagingURL: URL) throws {
