@@ -5,6 +5,9 @@ struct ContentView: View {
     @StateObject private var viewer = ViewerModel()
     @State private var safariItem: SafariItem?
     @State private var isShowingFolderPicker = false
+    @State private var isShowingHTMLPicker = false
+
+    private static let htmlType = UTType(filenameExtension: "html") ?? .data
 
     var body: some View {
         Group {
@@ -26,6 +29,11 @@ struct ContentView: View {
                             viewer.showFileSelection()
                         }
                         .buttonStyle(.bordered)
+
+                        Button("Files") {
+                            isShowingHTMLPicker = true
+                        }
+                        .buttonStyle(.bordered)
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
@@ -41,23 +49,36 @@ struct ContentView: View {
                     message: viewer.errorMessage,
                     onChooseFolder: {
                         isShowingFolderPicker = true
+                    },
+                    onOpenFile: {
+                        isShowingHTMLPicker = true
                     }
                 )
             } else if viewer.isRefreshing {
-                ProgressView("Loading TSO files…")
+                ProgressView("Loading HTML files…")
             } else if let message = viewer.errorMessage {
-                Text(message)
-                    .font(.body)
-                    .multilineTextAlignment(.center)
-                    .padding()
+                VStack(spacing: 16) {
+                    Text(message)
+                        .font(.body)
+                        .multilineTextAlignment(.center)
+                    Button("Files") {
+                        isShowingHTMLPicker = true
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .padding()
             } else {
                 HTMLFilePickerView(
-                    title: "Choose TSO File",
+                    title: "Choose HTML",
                     fileNames: viewer.htmlFileNames,
-                    currentFileName: viewer.currentFileName
-                ) { fileName in
-                    viewer.switchTo(fileName: fileName)
-                }
+                    currentFileName: viewer.currentFileName,
+                    onSelect: { fileName in
+                        viewer.switchTo(fileName: fileName)
+                    },
+                    onOpenFile: {
+                        isShowingHTMLPicker = true
+                    }
+                )
             }
         }
         .sheet(item: $safariItem) { item in
@@ -78,8 +99,22 @@ struct ContentView: View {
                 viewer.setFolderSelectionError(error)
             }
         }
+        .fileImporter(
+            isPresented: $isShowingHTMLPicker,
+            allowedContentTypes: [Self.htmlType],
+            allowsMultipleSelection: false
+        ) { result in
+            switch result {
+            case .success(let urls):
+                if let url = urls.first {
+                    viewer.openHTMLFile(url)
+                }
+            case .failure(let error):
+                viewer.setFileSelectionError(error)
+            }
+        }
         .alert(
-            "TSO Error",
+            "Server Error",
             isPresented: Binding(
                 get: { viewer.startURL != nil && viewer.errorMessage != nil },
                 set: { isPresented in
@@ -106,15 +141,18 @@ struct ContentView: View {
 private struct FolderSelectionView: View {
     let message: String?
     let onChooseFolder: () -> Void
+    let onOpenFile: () -> Void
 
     var body: some View {
         ContentUnavailableView {
             Label("Choose TSO Folder", systemImage: "folder")
         } description: {
-            Text(message ?? "Choose the folder that contains the HTML files to serve.")
+            Text(message ?? "Choose the folder that contains your usual TSO HTML files, or open any HTML file with Files.")
         } actions: {
-            Button("Choose Folder", action: onChooseFolder)
+            Button("Choose TSO Folder", action: onChooseFolder)
                 .buttonStyle(.borderedProminent)
+            Button("Files", action: onOpenFile)
+                .buttonStyle(.bordered)
         }
         .padding()
     }
@@ -125,34 +163,44 @@ private struct HTMLFilePickerView: View {
     let fileNames: [String]
     let currentFileName: String?
     let onSelect: (String) -> Void
+    let onOpenFile: () -> Void
 
     var body: some View {
         NavigationStack {
-            Group {
-                if fileNames.isEmpty {
-                    ContentUnavailableView(
-                        "No HTML Files",
-                        systemImage: "doc.text.magnifyingglass",
-                        description: Text("Add .html files to the selected TSO folder.")
-                    )
-                } else {
-                    List(fileNames, id: \.self) { fileName in
-                        Button {
-                            onSelect(fileName)
-                        } label: {
-                            HStack {
-                                Text(fileName)
-                                    .foregroundStyle(.primary)
+            List {
+                Section("TSO") {
+                    if fileNames.isEmpty {
+                        Text("No HTML files in the TSO folder")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(fileNames, id: \.self) { fileName in
+                            Button {
+                                onSelect(fileName)
+                            } label: {
+                                HStack {
+                                    Text(fileName)
+                                        .foregroundStyle(.primary)
 
-                                Spacer()
+                                    Spacer()
 
-                                if fileName == currentFileName {
-                                    Image(systemName: "checkmark")
-                                        .foregroundStyle(.tint)
+                                    if fileName == currentFileName {
+                                        Image(systemName: "checkmark")
+                                            .foregroundStyle(.tint)
+                                    }
                                 }
                             }
                         }
                     }
+                }
+
+                Section {
+                    Button {
+                        onOpenFile()
+                    } label: {
+                        Label("Files", systemImage: "folder")
+                    }
+                } footer: {
+                    Text("Open an HTML file anywhere available in the iPad Files picker.")
                 }
             }
             .navigationTitle(title)
