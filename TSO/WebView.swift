@@ -25,6 +25,7 @@ struct WebView: UIViewRepresentable {
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
+        context.coordinator.parent = self
         if webView.url != url {
             webView.load(URLRequest(url: url))
         }
@@ -32,12 +33,19 @@ struct WebView: UIViewRepresentable {
 
     @MainActor
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
-        private let parent: WebView
+        fileprivate var parent: WebView
         private var downloadDestinations: [ObjectIdentifier: URL] = [:]
         private var exportDirectoriesByPicker: [ObjectIdentifier: URL] = [:]
 
         init(parent: WebView) {
             self.parent = parent
+        }
+
+        func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+            // iPadOS may reclaim WebKit's separate content process while the
+            // containing app remains alive. Reload the current requested page
+            // so a new content process is created instead of leaving a blank view.
+            webView.load(URLRequest(url: parent.url))
         }
 
         func webView(
