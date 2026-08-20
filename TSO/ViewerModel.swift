@@ -53,12 +53,46 @@ final class ViewerModel: ObservableObject {
         errorMessage = "Unable to choose the TSO folder: \(error.localizedDescription)"
     }
 
+    func setFileSelectionError(_ error: Error) {
+        errorMessage = "Unable to open the HTML file: \(error.localizedDescription)"
+    }
+
     func clearError() {
         errorMessage = nil
     }
 
     func setSourceDirectory(_ url: URL) {
         loadFiles(from: url, rememberFolder: true)
+    }
+
+    func openHTMLFile(_ url: URL) {
+        refreshTask?.cancel()
+        refreshID = UUID()
+        let requestID = refreshID
+        isRefreshing = true
+        errorMessage = nil
+
+        refreshTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                let snapshot = try await siteBuilder.build(selectedHTMLFile: url)
+                guard !Task.isCancelled, refreshID == requestID else { return }
+
+                runtimeRootURL = snapshot.rootURL
+                currentFileName = url.lastPathComponent
+                restartServerAndOpen(fileName: url.lastPathComponent)
+            } catch is CancellationError {
+                // A newer request superseded this one.
+            } catch {
+                guard refreshID == requestID else { return }
+                errorMessage = "Unable to open the HTML file: \(error.localizedDescription)"
+            }
+
+            if refreshID == requestID {
+                isRefreshing = false
+                refreshTask = nil
+            }
+        }
     }
 
     func showFileSelection() {
@@ -88,10 +122,13 @@ final class ViewerModel: ObservableObject {
             return
         }
 
+        restartServerAndOpen(fileName: fileName)
+    }
+
+    private func restartServerAndOpen(fileName: String) {
         // A loopback listener can be invalidated while the app is suspended even
         // though this model still holds the server object. Starting a fresh listener
-        // on an explicit file switch makes Switch a recovery path instead of reusing
-        // a stale server that can only produce a blank web view.
+        // on an explicit file switch/open makes the action a recovery path.
         if let server {
             server.stop()
             self.server = nil
@@ -100,7 +137,7 @@ final class ViewerModel: ObservableObject {
 
         guard startTask == nil else { return }
         guard let runtimeRootURL else {
-            errorMessage = "The TSO files have not finished loading."
+            errorMessage = "The HTML files have not finished loading."
             return
         }
         startTask = Task { [weak self] in
@@ -122,7 +159,7 @@ final class ViewerModel: ObservableObject {
                 startURL = servedURL(for: fileName, port: port)
                 errorMessage = nil
             } catch {
-                errorMessage = "Unable to start TSO: \(error.localizedDescription)"
+                errorMessage = "Unable to start Server: \(error.localizedDescription)"
             }
             startTask = nil
         }
