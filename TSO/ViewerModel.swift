@@ -88,11 +88,14 @@ final class ViewerModel: ObservableObject {
             return
         }
 
-        if let port, let server {
-            server.setDefaultFileName(fileName)
-            currentFileName = fileName
-            startURL = servedURL(for: fileName, port: port)
-            return
+        // A loopback listener can be invalidated while the app is suspended even
+        // though this model still holds the server object. Starting a fresh listener
+        // on an explicit file switch makes Switch a recovery path instead of reusing
+        // a stale server that can only produce a blank web view.
+        if let server {
+            server.stop()
+            self.server = nil
+            port = nil
         }
 
         guard startTask == nil else { return }
